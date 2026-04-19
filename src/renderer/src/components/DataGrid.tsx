@@ -1,77 +1,140 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
   flexRender,
   ColumnDef,
 } from '@tanstack/react-table'
+import { Pencil } from 'lucide-react'
 
 interface DataGridProps {
   data: any[]
+  onSelectionChange: (selectedIds: string[]) => void
+  onEditRow?: (doc: any) => void
 }
 
-export const DataGrid: React.FC<DataGridProps> = ({ data }) => {
+export const DataGrid: React.FC<DataGridProps> = ({ data, onSelectionChange, onEditRow }) => {
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({})
+
   const columns = useMemo<ColumnDef<any>[]>(() => {
     if (!data || data.length === 0) return []
-    
-    // Get unique keys across all items
+
+    // ── Checkbox column ──────────────────────────────────────────────
+    const checkboxCol: ColumnDef<any> = {
+      id: '__select__',
+      header: ({ table }) => (
+        <input
+          type="checkbox"
+          checked={table.getIsAllRowsSelected()}
+          onChange={table.getToggleAllRowsSelectedHandler()}
+          style={{ cursor: 'pointer', accentColor: 'var(--accent-color)' }}
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          checked={row.getIsSelected()}
+          onChange={row.getToggleSelectedHandler()}
+          style={{ cursor: 'pointer', accentColor: 'var(--accent-color)' }}
+        />
+      ),
+      size: 40,
+    }
+
+    // ── Actions column ───────────────────────────────────────────────
+    const actionsCol: ColumnDef<any> = {
+      id: '__actions__',
+      header: () => null,
+      cell: ({ row }) => (
+        <button
+          title="Edit document"
+          onClick={e => { e.stopPropagation(); onEditRow?.(row.original) }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-color-mute)', cursor: 'pointer', padding: 4, borderRadius: 4, display: 'flex', alignItems: 'center', opacity: 0.6, transition: 'opacity 0.15s' }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+          onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+        >
+          <Pencil size={13} />
+        </button>
+      ),
+      size: 36,
+    }
+
+    // ── Data columns ─────────────────────────────────────────────────
     const keys = new Set<string>()
     data.forEach(item => Object.keys(item).forEach(k => keys.add(k)))
-    
-    // Sort so 'id' is first
     const sortedKeys = Array.from(keys).sort((a, b) => {
       if (a === 'id') return -1
       if (b === 'id') return 1
       return a.localeCompare(b)
     })
 
-    return sortedKeys.map(key => ({
+    const dataCols: ColumnDef<any>[] = sortedKeys.map(key => ({
       header: key,
       accessorKey: key,
       cell: (info) => {
         const val = info.getValue()
-        if (val === null || val === undefined) return <span style={{ opacity: 0.5 }}>null</span>
-        if (typeof val === 'object') return JSON.stringify(val)
-        if (typeof val === 'boolean') return val ? 'true' : 'false'
+        if (val === null || val === undefined) return <span style={{ opacity: 0.4, fontStyle: 'italic' }}>null</span>
+        if (typeof val === 'object') return <span style={{ opacity: 0.7 }}>{JSON.stringify(val)}</span>
+        if (typeof val === 'boolean') return <span style={{ color: val ? 'var(--accent-color)' : 'var(--text-color-mute)' }}>{String(val)}</span>
         return String(val)
       }
     }))
-  }, [data])
+
+    return [checkboxCol, actionsCol, ...dataCols]
+  }, [data, onEditRow])
 
   const table = useReactTable({
     data,
     columns,
+    state: { rowSelection },
+    onRowSelectionChange: (updater) => {
+      const next = typeof updater === 'function' ? updater(rowSelection) : updater
+      setRowSelection(next)
+      const selectedIds = Object.keys(next)
+        .filter(k => next[k])
+        .map(idx => data[Number(idx)]?.id)
+        .filter(Boolean)
+      onSelectionChange(selectedIds)
+    },
     getCoreRowModel: getCoreRowModel(),
+    getRowId: (row, idx) => String(idx),
+    enableRowSelection: true,
   })
 
   if (!data || data.length === 0) {
-    return <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-color-mute)' }}>No data to display. Execute a query to view results.</div>
+    return (
+      <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-color-mute)' }}>
+        No data to display. Execute a query to view results.
+      </div>
+    )
   }
 
   return (
-    <div className="table-container" style={{ overflow: 'auto', flex: 1 }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
-        <thead style={{ position: 'sticky', top: 0, background: 'var(--glass-bg)', zIndex: 10 }}>
+    <div style={{ overflow: 'auto', flex: 1 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+        <thead style={{ position: 'sticky', top: 0, background: 'var(--glass-bg)', zIndex: 10, backdropFilter: 'blur(8px)' }}>
           {table.getHeaderGroups().map(headerGroup => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map(header => (
-                <th key={header.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-color-soft)', fontWeight: 600 }}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
+                <th key={header.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-color-soft)', fontWeight: 600, whiteSpace: 'nowrap', width: (header.column.id === '__select__' || header.column.id === '__actions__') ? `${header.column.columnDef.size}px` : 'auto' }}>
+                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                 </th>
               ))}
             </tr>
           ))}
         </thead>
         <tbody>
-          {table.getRowModel().rows.map(row => (
-            <tr key={row.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+          {table.getRowModel().rows.map((row, i) => (
+            <tr
+              key={row.id}
+              style={{
+                borderBottom: '1px solid var(--border-color)',
+                background: row.getIsSelected() ? 'var(--accent-color-dim, rgba(99,102,241,0.08))' : i % 2 === 1 ? 'var(--bg-color-soft)' : 'transparent',
+                transition: 'background 0.15s ease',
+              }}
+            >
               {row.getVisibleCells().map(cell => (
-                <td key={cell.id} style={{ padding: '12px 16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px' }}>
+                <td key={cell.id} style={{ padding: '8px 14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '280px' }}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
               ))}

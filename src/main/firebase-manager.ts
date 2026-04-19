@@ -1,5 +1,6 @@
 import * as adminModule from 'firebase-admin'
 import { SecureStore } from './secure-store'
+import { parseFql } from './fql-parser'
 
 const admin = (adminModule as any).default || adminModule
 
@@ -127,5 +128,115 @@ export class FirebaseManager {
         await admin.app().delete()
      }
      SecureStore.clearCredentials()
+  }
+
+  static async bulkDelete(collectionName: string, docIds: string[]): Promise<{ deleted: number }> {
+    if (admin.apps.length === 0) throw new Error('Firebase not initialized')
+    const db = admin.firestore()
+    const CHUNK_SIZE = 500
+    let deleted = 0
+
+    for (let i = 0; i < docIds.length; i += CHUNK_SIZE) {
+      const chunk = docIds.slice(i, i + CHUNK_SIZE)
+      const batch = db.batch()
+      chunk.forEach(id => {
+        batch.delete(db.collection(collectionName).doc(id))
+      })
+      await batch.commit()
+      deleted += chunk.length
+    }
+
+    return { deleted }
+  }
+
+  static async bulkUpdateField(
+    collectionName: string,
+    docIds: string[],
+    fieldName: string,
+    newValue: any
+  ): Promise<{ updated: number }> {
+    if (admin.apps.length === 0) throw new Error('Firebase not initialized')
+    const db = admin.firestore()
+    const CHUNK_SIZE = 500
+    let updated = 0
+
+    for (let i = 0; i < docIds.length; i += CHUNK_SIZE) {
+      const chunk = docIds.slice(i, i + CHUNK_SIZE)
+      const batch = db.batch()
+      chunk.forEach(id => {
+        batch.update(db.collection(collectionName).doc(id), { [fieldName]: newValue })
+      })
+      await batch.commit()
+      updated += chunk.length
+    }
+
+    return { updated }
+  }
+
+  static async createDocument(collectionName: string, data: any, docId?: string): Promise<{ id: string }> {
+    if (admin.apps.length === 0) throw new Error('Firebase not initialized')
+    const db = admin.firestore()
+    if (docId && docId.trim()) {
+      await db.collection(collectionName).doc(docId.trim()).set(data)
+      return { id: docId.trim() }
+    }
+    const ref = await db.collection(collectionName).add(data)
+    return { id: ref.id }
+  }
+
+  static async updateDocument(
+    collectionName: string,
+    docId: string,
+    data: any,
+    fieldsToDelete: string[] = []
+  ): Promise<void> {
+    if (admin.apps.length === 0) throw new Error('Firebase not initialized')
+    const db = admin.firestore()
+    const { id: _id, ...payload } = data // strip client-side 'id' field
+
+    // When fields need to be deleted, we can't rely on FieldValue.deleteField()
+    // due to ESM bundling in electron-vite. Instead, read the doc, strip the keys, then set().
+    if (fieldsToDelete.length > 0) {
+      const docRef = db.collection(collectionName).doc(docId)
+      const snap = await docRef.get()
+      const existing = snap.data() || {}
+
+      for (const field of fieldsToDelete) {
+        delete existing[field]
+      }
+
+      await docRef.set({ ...existing, ...payload })
+    } else {
+      await db.collection(collectionName).doc(docId).update(payload)
+    }
+  }
+
+  static async executeFqlQuery(collectionName: string, fqlString: string) {
+    if (admin.apps.length === 0) throw new Error('Firebase not initialized')
+    const parsed = parseFql(fqlString)
+    if (parsed.error) throw new Error(parsed.error)
+
+    const db = admin.firestore()
+    let query: admin.firestore.Query = db.collection(collectionName)
+
+    for (const filter of parsed.filters) {
+      query = query.where(filter.field, filter.operator, filter.value)
+    }
+    if (parsed.orderBy) {
+      query = query.orderBy(parsed.orderBy.field, parsed.orderBy.direction)
+    }
+
+    const snapshot = await query.limit(parsed.limit).get()
+    return snapshot.docs.map(doc => {
+      const data = doc.data()
+      for (const [key, value] of Object.entries(data)) {
+        if (value instanceof admin.firestore.Timestamp) {
+          data[key] = value.toDate().toISOString()
+        } else if (value instanceof admin.firestore.DocumentReference) {
+          data[key] = value.path
+        }
+      }
+      return { id: doc.id, ...data }
+    })
   }
 }

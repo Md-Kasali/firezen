@@ -9,6 +9,11 @@ const api = {
   disconnect: () => ipcRenderer.invoke('firebase:disconnect'),
   sampleCollectionSchema: (collectionName: string) => ipcRenderer.invoke('firebase:sampleCollectionSchema', collectionName),
   executeQuery: (collectionName: string, filters: any[], limit?: number) => ipcRenderer.invoke('firebase:executeQuery', collectionName, filters, limit),
+  bulkDelete: (collectionName: string, docIds: string[]) => ipcRenderer.invoke('firebase:bulkDelete', collectionName, docIds),
+  bulkUpdateField: (collectionName: string, docIds: string[], fieldName: string, newValue: any) => ipcRenderer.invoke('firebase:bulkUpdateField', collectionName, docIds, fieldName, newValue),
+  executeFqlQuery: (collectionName: string, fqlString: string) => ipcRenderer.invoke('firebase:executeFqlQuery', collectionName, fqlString),
+  createDocument: (collectionName: string, data: any, docId?: string) => ipcRenderer.invoke('firebase:createDocument', collectionName, data, docId),
+  updateDocument: (collectionName: string, docId: string, data: any, fieldsToDelete?: string[]) => ipcRenderer.invoke('firebase:updateDocument', collectionName, docId, data, fieldsToDelete),
   ai: {
     setApiKey: (key: string) => ipcRenderer.invoke('ai:setApiKey', key),
     hasApiKey: () => ipcRenderer.invoke('ai:hasApiKey'),

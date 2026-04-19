@@ -95,6 +95,50 @@ app.whenReady().then(() => {
       return { success: false, error: err.message }
     }
   })
+
+  // IPC endpoints for Bulk Operations
+  ipcMain.handle('firebase:bulkDelete', async (_, collectionName: string, docIds: string[]) => {
+    try {
+      return await FirebaseManager.bulkDelete(collectionName, docIds)
+    } catch (err: any) {
+      return { error: err.message }
+    }
+  })
+
+  ipcMain.handle('firebase:bulkUpdateField', async (_, collectionName: string, docIds: string[], fieldName: string, newValue: any) => {
+    try {
+      return await FirebaseManager.bulkUpdateField(collectionName, docIds, fieldName, newValue)
+    } catch (err: any) {
+      return { error: err.message }
+    }
+  })
+
+  ipcMain.handle('firebase:executeFqlQuery', async (_, collectionName: string, fqlString: string) => {
+    try {
+      const docs = await FirebaseManager.executeFqlQuery(collectionName, fqlString)
+      return { success: true, docs }
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('firebase:createDocument', async (_, collectionName: string, data: any, docId?: string) => {
+    try {
+      const result = await FirebaseManager.createDocument(collectionName, data, docId)
+      return { success: true, id: result.id }
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('firebase:updateDocument', async (_, collectionName: string, docId: string, data: any, fieldsToDelete: string[] = []) => {
+    try {
+      await FirebaseManager.updateDocument(collectionName, docId, data, fieldsToDelete)
+      return { success: true }
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
+  })
   createWindow()
 
   app.on('activate', function () {
