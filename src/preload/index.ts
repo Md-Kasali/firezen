@@ -14,6 +14,8 @@ const api = {
   executeFqlQuery: (collectionName: string, fqlString: string) => ipcRenderer.invoke('firebase:executeFqlQuery', collectionName, fqlString),
   createDocument: (collectionName: string, data: any, docId?: string) => ipcRenderer.invoke('firebase:createDocument', collectionName, data, docId),
   updateDocument: (collectionName: string, docId: string, data: any, fieldsToDelete?: string[]) => ipcRenderer.invoke('firebase:updateDocument', collectionName, docId, data, fieldsToDelete),
+  exportAllCollections: () => ipcRenderer.invoke('firebase:exportAllCollections'),
+  importCollection: (collectionName: string, docs: any[]) => ipcRenderer.invoke('firebase:importCollection', collectionName, docs),
   ai: {
     setApiKey: (key: string) => ipcRenderer.invoke('ai:setApiKey', key),
     hasApiKey: () => ipcRenderer.invoke('ai:hasApiKey'),

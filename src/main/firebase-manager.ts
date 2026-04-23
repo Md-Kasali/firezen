@@ -239,4 +239,57 @@ export class FirebaseManager {
       return { id: doc.id, ...data }
     })
   }
+
+  static async exportAllCollections(): Promise<Record<string, any[]>> {
+    if (admin.apps.length === 0) throw new Error('Firebase not initialized')
+    const db = admin.firestore()
+    const colRefs = await db.listCollections()
+    const result: Record<string, any[]> = {}
+
+    for (const colRef of colRefs) {
+      const snapshot = await colRef.get()
+      result[colRef.id] = snapshot.docs.map(doc => {
+        const data = doc.data()
+        for (const [key, value] of Object.entries(data)) {
+          if (value instanceof admin.firestore.Timestamp) {
+            data[key] = value.toDate().toISOString()
+          } else if (value instanceof admin.firestore.DocumentReference) {
+            data[key] = value.path
+          }
+        }
+        return { id: doc.id, ...data }
+      })
+    }
+    return result
+  }
+
+  static async importCollection(
+    collectionName: string,
+    docs: Array<{ id?: string; [key: string]: any }>
+  ): Promise<{ imported: number; skipped: number }> {
+    if (admin.apps.length === 0) throw new Error('Firebase not initialized')
+    const db = admin.firestore()
+    const CHUNK_SIZE = 500
+    let imported = 0
+    let skipped = 0
+
+    const validDocs = docs.filter(d => d && typeof d === 'object')
+    skipped = docs.length - validDocs.length
+
+    for (let i = 0; i < validDocs.length; i += CHUNK_SIZE) {
+      const chunk = validDocs.slice(i, i + CHUNK_SIZE)
+      const batch = db.batch()
+      for (const doc of chunk) {
+        const { id, ...data } = doc
+        const ref = id
+          ? db.collection(collectionName).doc(String(id))
+          : db.collection(collectionName).doc()
+        batch.set(ref, data)
+      }
+      await batch.commit()
+      imported += chunk.length
+    }
+
+    return { imported, skipped }
+  }
 }

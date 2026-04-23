@@ -186,3 +186,97 @@
   display: flex;
   flex-direction: column;
 }
+
+/* ── Toolbar Buttons ─────────────────────────────────────────────────── */
+.toolbar-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-color-soft);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  flex-shrink: 0;
+}
+
+.toolbar-btn:hover {
+  background: var(--bg-color-mute);
+  color: var(--text-color);
+  transform: translateY(-1px);
+}
+
+.toolbar-btn:active {
+  transform: translateY(0);
+}
+
+.toolbar-btn--accent {
+  background: var(--accent-color);
+  color: white;
+}
+
+.toolbar-btn--accent:hover {
+  background: var(--accent-color-hover);
+  color: white;
+}
+
+.toolbar-btn--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border-color);
+  margin: 0 6px;
+  flex-shrink: 0;
+}
+
+/* Tooltip via data-tooltip attribute */
+.toolbar-btn[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  white-space: nowrap;
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 5px 10px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 9999;
+}
+
+/* Small arrow */
+.toolbar-btn[data-tooltip]::before {
+  content: '';
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  border: 5px solid transparent;
+  border-bottom-color: #1e293b;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 9999;
+}
+
+.toolbar-btn[data-tooltip]:hover::after,
+.toolbar-btn[data-tooltip]:hover::before {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}

@@ -139,6 +139,25 @@ app.whenReady().then(() => {
       return { success: false, error: err.message }
     }
   })
+
+  ipcMain.handle('firebase:exportAllCollections', async () => {
+    try {
+      const data = await FirebaseManager.exportAllCollections()
+      return { success: true, data }
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('firebase:importCollection', async (_, collectionName: string, docs: any[]) => {
+    try {
+      const result = await FirebaseManager.importCollection(collectionName, docs)
+      return { success: true, ...result }
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
+  })
+
   createWindow()
 
   app.on('activate', function () {

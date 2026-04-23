@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { QueryBuilder } from './QueryBuilder'
 import { DataGrid } from './DataGrid'
 import { BulkActionBar } from './BulkActionBar'
 import { FqlEditor } from './FqlEditor'
 import { DocumentEditor } from './DocumentEditor'
-import { Database, Settings, X, Table2, Braces, Plus } from 'lucide-react'
+import { Database, Settings, X, Table2, Braces, Plus, Upload, Download, FileText, CheckCircle2, AlertCircle } from 'lucide-react'
 
 interface DashboardProps {
   onAddProject: () => void
@@ -24,6 +24,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
   const [queryMode, setQueryMode] = useState<'visual' | 'advanced'>('visual')
   const [viewMode, setViewMode] = useState<'table' | 'json'>('table')
   const [editingDoc, setEditingDoc] = useState<{ mode: 'create' | 'edit'; doc?: any } | null>(null)
+
+  // Toolbar state
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importJson, setImportJson] = useState('')
+  const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [importLoading, setImportLoading] = useState(false)
+  const [exportLoading, setExportLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [showSettings, setShowSettings] = useState(false)
   const [apiKeyInput, setApiKeyInput] = useState('')
@@ -114,12 +122,201 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
     await window.api.ai.setApiKey(apiKeyInput.trim())
     setShowSettings(false)
     setApiKeyInput('')
-    window.location.reload() // Naive refresh to enforce components re-evaluating hasApiKey
+    window.location.reload()
+  }
+
+  // ── Export ────────────────────────────────────────────────────────────────
+  const handleExport = async () => {
+    setExportLoading(true)
+    try {
+      const res = await window.api.exportAllCollections()
+      if (!res.success) { alert('Export failed: ' + res.error); return }
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `firezen-export-${currentProject}-${Date.now()}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      alert('Export error: ' + err.message)
+    } finally {
+      setExportLoading(false)
+    }
+  }
+
+  // ── Import ────────────────────────────────────────────────────────────────
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => setImportJson((ev.target?.result as string) || '')
+    reader.readAsText(file)
+    e.target.value = '' // reset so same file can be re-selected
+  }
+
+  const handleImport = async () => {
+    setImportStatus(null)
+    if (!importJson.trim()) { setImportStatus({ type: 'error', message: 'Paste or load a JSON file first.' }); return }
+    let parsed: Record<string, any[]>
+    try {
+      parsed = JSON.parse(importJson)
+    } catch {
+      setImportStatus({ type: 'error', message: 'Invalid JSON – please check your file.' })
+      return
+    }
+    // Validate top-level is an object whose values are arrays
+    const entries = Object.entries(parsed)
+    if (entries.length === 0 || !entries.every(([, v]) => Array.isArray(v))) {
+      setImportStatus({ type: 'error', message: 'JSON must be an object: { "collectionName": [ {…} ] }' })
+      return
+    }
+    setImportLoading(true)
+    let totalImported = 0
+    const errors: string[] = []
+    for (const [colName, docs] of entries) {
+      const res = await window.api.importCollection(colName, docs)
+      if (res.success) {
+        totalImported += res.imported
+      } else {
+        errors.push(`${colName}: ${res.error}`)
+      }
+    }
+    setImportLoading(false)
+    if (errors.length) {
+      setImportStatus({ type: 'error', message: `Partial import. Errors:\n${errors.join('\n')}` })
+    } else {
+      setImportStatus({ type: 'success', message: `Successfully imported ${totalImported} document(s) across ${entries.length} collection(s).` })
+      // Refresh if the current collection was among those imported
+      if (activeCollection && entries.some(([n]) => n === activeCollection)) {
+        handleExecuteQuery([], 50)
+      }
+      // Refresh collection list in case new collections were added
+      window.api.listCollections().then(cols => {
+        setCollections(cols)
+      })
+    }
+  }
+
+  const closeImportModal = () => {
+    setShowImportModal(false)
+    setImportJson('')
+    setImportStatus(null)
   }
 
   return (
-    <div className="main-content">
-      {/* Settings Modal */}
+    <div className="main-content" style={{ flexDirection: 'column' }}>
+      {/* ── Import Modal ─────────────────────────────────────────────────── */}
+      {showImportModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.55)', zIndex: 200,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backdropFilter: 'blur(6px)'
+        }}>
+          <div className="glass-panel" style={{
+            width: '540px', maxHeight: '80vh',
+            padding: '28px', display: 'flex', flexDirection: 'column', gap: '18px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.4)'
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Upload size={16} style={{ color: 'var(--accent-color)' }} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>Import Collection</h3>
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--text-color-mute)' }}>Paste or load a JSON file to import documents</p>
+                </div>
+              </div>
+              <button onClick={closeImportModal} style={{ color: 'var(--text-color-mute)', padding: 4 }}><X size={20} /></button>
+            </div>
+
+            {/* Format hint */}
+            <div style={{ background: 'var(--bg-color-soft)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--text-color-soft)', borderLeft: '3px solid var(--accent-color)' }}>
+              <strong>Expected format:</strong>
+              <pre style={{ margin: '4px 0 0', fontFamily: 'monospace', fontSize: 11, opacity: 0.85 }}>{`{ "collectionName": [ { "field": "value" } ] }`}</pre>
+            </div>
+
+            {/* File loader */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '8px 16px', borderRadius: 7,
+                  border: '1px solid var(--border-color)',
+                  background: 'var(--bg-color-soft)',
+                  color: 'var(--text-color-soft)',
+                  fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                <FileText size={14} /> Choose File
+              </button>
+              <input ref={fileInputRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={handleFileSelect} />
+              <span style={{ alignSelf: 'center', fontSize: 12, color: 'var(--text-color-mute)', opacity: 0.7 }}>or paste JSON below</span>
+            </div>
+
+            {/* JSON textarea */}
+            <textarea
+              value={importJson}
+              onChange={e => setImportJson(e.target.value)}
+              placeholder={'{\n  "users": [\n    { "id": "uid1", "name": "Alice" }\n  ]\n}'}
+              style={{
+                width: '100%', minHeight: 180, resize: 'vertical',
+                padding: '12px', borderRadius: 8,
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-color)', color: 'var(--text-color)',
+                fontFamily: '"JetBrains Mono", monospace', fontSize: 12,
+                lineHeight: 1.6, outline: 'none',
+                transition: 'border-color 0.15s'
+              }}
+            />
+
+            {/* Status */}
+            {importStatus && (
+              <div style={{
+                display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 14px',
+                borderRadius: 8, fontSize: 13,
+                background: importStatus.type === 'success' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                border: `1px solid ${importStatus.type === 'success' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                color: importStatus.type === 'success' ? '#22c55e' : '#ef4444'
+              }}>
+                {importStatus.type === 'success'
+                  ? <CheckCircle2 size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+                  : <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} />}
+                <span style={{ whiteSpace: 'pre-wrap' }}>{importStatus.message}</span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={closeImportModal} style={{ padding: '9px 20px', borderRadius: 7, border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-color-soft)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button
+                onClick={handleImport}
+                disabled={importLoading}
+                style={{
+                  padding: '9px 22px', borderRadius: 7, border: 'none',
+                  background: importLoading ? 'var(--bg-color-mute)' : 'var(--accent-color)',
+                  color: importLoading ? 'var(--text-color-mute)' : 'white',
+                  fontSize: 13, fontWeight: 600, cursor: importLoading ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  transition: 'all 0.15s'
+                }}
+              >
+                <Upload size={14} />
+                {importLoading ? 'Importing…' : 'Import'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Settings Modal ───────────────────────────────────────────────── */}
       {showSettings && (
          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
             <div className="glass-panel" style={{ width: '400px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -135,6 +332,52 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
             </div>
          </div>
       )}
+
+      {/* ── Toolbar ──────────────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 2,
+        padding: '5px 12px',
+        borderBottom: '1px solid var(--border-color)',
+        background: 'var(--bg-color-soft)',
+        flexShrink: 0
+      }}>
+        {/* New Document */}
+        <button
+          id="toolbar-new-document"
+          onClick={() => activeCollection && setEditingDoc({ mode: 'create' })}
+          disabled={!activeCollection}
+          data-tooltip={activeCollection ? 'New Document' : 'Select a collection first'}
+          className={`toolbar-btn toolbar-btn--accent${!activeCollection ? ' toolbar-btn--disabled' : ''}`}
+        >
+          <Plus size={16} />
+        </button>
+
+        <div className="toolbar-sep" />
+
+        {/* Import */}
+        <button
+          id="toolbar-import"
+          onClick={() => { setImportStatus(null); setShowImportModal(true) }}
+          data-tooltip="Import from JSON"
+          className="toolbar-btn"
+        >
+          <Upload size={16} />
+        </button>
+
+        {/* Export */}
+        <button
+          id="toolbar-export"
+          onClick={handleExport}
+          disabled={exportLoading}
+          data-tooltip={exportLoading ? 'Exporting…' : 'Export all to JSON'}
+          className={`toolbar-btn${exportLoading ? ' toolbar-btn--disabled' : ''}`}
+        >
+          <Download size={16} />
+        </button>
+      </div>
+
+      {/* ── Main layout (sidebar + workspace) ───────────────────────────── */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
       <div className="sidebar animate-fade-in" style={{ width: '240px', display: 'flex', flexDirection: 'column' }}>
         
@@ -286,6 +529,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
             </div>
          )}
        </div>
+
+      </div>{/* end sidebar+workspace wrapper */}
 
       {/* Document Editor Modal */}
       {editingDoc && activeCollection && (
