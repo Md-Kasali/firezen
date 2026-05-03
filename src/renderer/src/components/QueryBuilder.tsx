@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, X, Play, Sparkles } from 'lucide-react'
+import { Plus, X, Play } from 'lucide-react'
 
 interface QueryBuilderProps {
   collectionName: string
@@ -18,17 +18,8 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ collectionName, onEx
   const [filters, setFilters] = useState<Array<{ field: string, operator: string, value: any }>>([])
   const [limit, setLimit] = useState(50)
   
-  const [aiPrompt, setAiPrompt] = useState('')
-  const [isAiLoading, setIsAiLoading] = useState(false)
-  const [hasApiKey, setHasApiKey] = useState(false)
-
-  useEffect(() => {
-    window.api.ai.hasApiKey().then(setHasApiKey).catch(console.error)
-  }, [])
-  
   useEffect(() => {
     setFilters([])
-    setAiPrompt('')
     if (collectionName) {
       window.api.sampleCollectionSchema(collectionName).then(setSchema).catch(console.error)
     }
@@ -67,49 +58,11 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ collectionName, onEx
      onExecute(castedFilters, limit)
   }
 
-  const handleAiConstruct = async () => {
-    if (!aiPrompt.trim() || !hasApiKey) return
-    setIsAiLoading(true)
-    try {
-      const res = await window.api.ai.parseQuery(aiPrompt, schema)
-      if (res.success && res.filters) {
-         setFilters(res.filters)
-      } else {
-         alert("AI failed to construct query: " + res.error)
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setIsAiLoading(false)
-    }
-  }
 
   return (
     <div className="glass-panel" style={{ padding: '20px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       
-      {schema.length > 0 && (
-         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg-color-soft)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <Sparkles size={16} style={{ color: 'var(--accent-color)' }} />
-            <input 
-               type="text" 
-               placeholder={hasApiKey ? "Ask AI (e.g. 'Show users living in NY older than 50')" : "Please set your OpenAI API key in Settings below the sidebar."}
-               value={aiPrompt}
-               onChange={e => setAiPrompt(e.target.value)}
-               disabled={!hasApiKey || isAiLoading}
-               style={{ flex: 1, ...inputStyle, border: 'none', background: 'transparent' }}
-               onKeyDown={e => e.key === 'Enter' && handleAiConstruct()}
-            />
-            {hasApiKey && (
-               <button 
-                 onClick={handleAiConstruct} 
-                 disabled={isAiLoading || !aiPrompt.trim()}
-                 style={{ padding: '6px 12px', background: 'var(--accent-color)', color: 'white', borderRadius: '6px', border: 'none', fontWeight: 600, cursor: 'pointer', opacity: isAiLoading ? 0.5 : 1 }}
-               >
-                 {isAiLoading ? 'Thinking...' : 'Generate'}
-               </button>
-            )}
-         </div>
-      )}
+
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h3 style={{ margin: 0, fontWeight: 600 }}>Query Constructor <span style={{ opacity: 0.5 }}>({collectionName})</span></h3>

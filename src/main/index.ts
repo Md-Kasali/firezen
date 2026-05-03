@@ -12,8 +12,9 @@ function createWindow(): void {
     width: 900,
     height: 670,
     show: false,
+    title: 'Firezen',
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
@@ -42,8 +43,9 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  // Set app name and user model id
+  app.setName('Firezen')
+  electronApp.setAppUserModelId('com.firezen.app')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

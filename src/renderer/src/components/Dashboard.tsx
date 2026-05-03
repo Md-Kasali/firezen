@@ -4,7 +4,7 @@ import { DataGrid } from './DataGrid'
 import { BulkActionBar } from './BulkActionBar'
 import { FqlEditor } from './FqlEditor'
 import { DocumentEditor } from './DocumentEditor'
-import { Database, Settings, X, Table2, Braces, Plus, Upload, Download, FileText, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Database, Settings, X, Table2, Braces, Plus, Upload, Download, FileText, CheckCircle2, AlertCircle, Sparkles, Loader2 } from 'lucide-react'
 
 interface DashboardProps {
   onAddProject: () => void
@@ -21,9 +21,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
   const [loading, setLoading] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [schema, setSchema] = useState<Array<{ name: string; type: string }>>([])  
-  const [queryMode, setQueryMode] = useState<'visual' | 'advanced'>('visual')
+  const [queryMode, setQueryMode] = useState<'visual' | 'advanced' | 'ai'>('visual')
   const [viewMode, setViewMode] = useState<'table' | 'json'>('table')
   const [editingDoc, setEditingDoc] = useState<{ mode: 'create' | 'edit'; doc?: any } | null>(null)
+
+  // AI Generate state
+  const [hasApiKey, setHasApiKey] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
 
   // Toolbar state
   const [showImportModal, setShowImportModal] = useState(false)
@@ -42,6 +48,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
      window.api.connect().then(res => {
         if (res.success && res.projectId) setCurrentProject(res.projectId)
      })
+     window.api.ai.hasApiKey().then(setHasApiKey).catch(() => setHasApiKey(false))
   }, [])
 
   // 2. Fetch Collections when target project resolves
@@ -123,6 +130,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
     setShowSettings(false)
     setApiKeyInput('')
     window.location.reload()
+  }
+
+  const handleAiGenerate = async () => {
+    if (!aiPrompt.trim() || !activeCollection || aiLoading) return
+    setAiLoading(true)
+    setAiError(null)
+    try {
+      const res = await window.api.ai.parseQuery(aiPrompt.trim(), schema)
+      if (!res.success) {
+        setAiError(res.error || 'AI failed to parse query.')
+        return
+      }
+      setLoading(true)
+      setSelectedIds([])
+      const docs = await window.api.executeQuery(activeCollection, res.filters, 50)
+      setResults(docs)
+    } catch (err: any) {
+      setAiError(err.message || 'Unexpected error.')
+    } finally {
+      setAiLoading(false)
+      setLoading(false)
+    }
   }
 
   // ── Export ────────────────────────────────────────────────────────────────
@@ -341,18 +370,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
         background: 'var(--bg-color-soft)',
         flexShrink: 0
       }}>
-        {/* New Document */}
-        <button
-          id="toolbar-new-document"
-          onClick={() => activeCollection && setEditingDoc({ mode: 'create' })}
-          disabled={!activeCollection}
-          data-tooltip={activeCollection ? 'New Document' : 'Select a collection first'}
-          className={`toolbar-btn toolbar-btn--accent${!activeCollection ? ' toolbar-btn--disabled' : ''}`}
-        >
-          <Plus size={16} />
-        </button>
 
-        <div className="toolbar-sep" />
 
         {/* Import */}
         <button
@@ -426,35 +444,112 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
               {/* Mode Toggle */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
                  <div style={{ display: 'flex', background: 'var(--bg-color-soft)', borderRadius: 6, padding: 3, border: '1px solid var(--border-color)' }}>
-                   {(['visual', 'advanced'] as const).map(m => (
-                     <button
-                       key={m}
-                       onClick={() => setQueryMode(m)}
-                       style={{ padding: '4px 14px', borderRadius: 4, border: 'none', background: queryMode === m ? 'var(--accent-color)' : 'transparent', color: queryMode === m ? 'white' : 'var(--text-color-soft)', fontWeight: queryMode === m ? 600 : 400, fontSize: 13, cursor: 'pointer', transition: 'all 0.15s' }}
-                     >
-                       {m === 'visual' ? 'Visual' : 'Advanced FQL'}
-                     </button>
-                   ))}
+                   {(['visual', 'advanced', 'ai'] as const).map(m => {
+                     const isAi = m === 'ai'
+                     const disabled = isAi && !hasApiKey
+                     const active = queryMode === m
+                     return (
+                       <button
+                         key={m}
+                         onClick={() => !disabled && setQueryMode(m)}
+                         disabled={disabled}
+                         title={disabled ? 'Configure an OpenAI API key in Settings to enable AI Generate' : undefined}
+                         style={{
+                           display: 'flex', alignItems: 'center', gap: 5,
+                           padding: '4px 14px', borderRadius: 4, border: 'none',
+                           background: active ? (isAi ? 'linear-gradient(135deg, #7c3aed, #a855f7)' : 'var(--accent-color)') : 'transparent',
+                           color: active ? 'white' : disabled ? 'var(--text-color-mute)' : 'var(--text-color-soft)',
+                           fontWeight: active ? 600 : 400, fontSize: 13,
+                           cursor: disabled ? 'not-allowed' : 'pointer',
+                           opacity: disabled ? 0.45 : 1,
+                           transition: 'all 0.15s',
+                         }}
+                       >
+                         {isAi && <Sparkles size={12} />}
+                         {m === 'visual' ? 'Visual' : m === 'advanced' ? 'Advanced FQL' : 'AI Generate'}
+                       </button>
+                     )
+                   })}
                  </div>
                  <span style={{ fontSize: 12, color: 'var(--text-color-mute)', opacity: 0.7 }}>
-                   {queryMode === 'advanced' ? 'Write FQL queries directly with autocomplete' : 'Build queries visually with row filters'}
+                   {queryMode === 'advanced' ? 'Write FQL queries directly with autocomplete'
+                     : queryMode === 'ai' ? 'Describe your query in plain English'
+                     : 'Build queries visually with row filters'}
                  </span>
+                 {queryMode === 'ai' && !hasApiKey && (
+                   <span style={{ fontSize: 11, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 4, padding: '2px 8px' }}>
+                     No API key — configure in Settings
+                   </span>
+                 )}
                  <span style={{ flex: 1 }} />
-                 {/* New Document button */}
-                 <button
-                   onClick={() => setEditingDoc({ mode: 'create' })}
-                   style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 14px', borderRadius: 6, border: 'none', background: 'var(--accent-color)', color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
-                 >
-                   <Plus size={14} /> New Document
-                 </button>
               </div>
 
               {/* Query Mode */}
               {queryMode === 'visual' ? (
                 <QueryBuilder collectionName={activeCollection} onExecute={handleExecuteQuery} />
-              ) : (
+              ) : queryMode === 'advanced' ? (
                 <div className="glass-panel" style={{ padding: 20, marginBottom: 16 }}>
                   <FqlEditor schema={schema} onExecute={handleFqlExecute} isLoading={loading} />
+                </div>
+              ) : (
+                /* AI Generate panel */
+                <div className="glass-panel" style={{ padding: '16px 20px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, rgba(124,58,237,0.2), rgba(168,85,247,0.2))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Sparkles size={14} style={{ color: '#a855f7' }} />
+                    </div>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>AI Generate</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-color-mute)', opacity: 0.7 }}>Describe what you want to query in plain English</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <input
+                      id="ai-prompt-input"
+                      type="text"
+                      value={aiPrompt}
+                      onChange={e => { setAiPrompt(e.target.value); setAiError(null) }}
+                      onKeyDown={e => e.key === 'Enter' && handleAiGenerate()}
+                      placeholder={`e.g. "Show active users with score greater than 5 ordered by name"`}
+                      disabled={aiLoading}
+                      style={{
+                        flex: 1,
+                        padding: '9px 14px',
+                        borderRadius: 8,
+                        border: aiError ? '1.5px solid #ef4444' : '1px solid var(--border-color)',
+                        background: 'var(--bg-color)',
+                        color: 'var(--text-color)',
+                        fontSize: 13,
+                        outline: 'none',
+                        transition: 'border-color 0.15s',
+                        fontFamily: 'inherit',
+                      }}
+                    />
+                    <button
+                      id="ai-generate-btn"
+                      onClick={handleAiGenerate}
+                      disabled={aiLoading || !aiPrompt.trim()}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 7,
+                        padding: '9px 20px', borderRadius: 8, border: 'none',
+                        background: (aiLoading || !aiPrompt.trim()) ? 'var(--bg-color-soft)' : 'linear-gradient(135deg, #7c3aed, #a855f7)',
+                        color: (aiLoading || !aiPrompt.trim()) ? 'var(--text-color-mute)' : 'white',
+                        fontWeight: 600, fontSize: 13,
+                        cursor: (aiLoading || !aiPrompt.trim()) ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.18s',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {aiLoading
+                        ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Generating…</>
+                        : <><Sparkles size={14} /> Generate</>}
+                    </button>
+                  </div>
+                  {aiError && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, padding: '9px 14px', borderRadius: 7, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 13, color: '#ef4444' }}>
+                      <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+                      <span>{aiError}</span>
+                    </div>
+                  )}
                 </div>
               )}
               
@@ -496,7 +591,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
                  )}
               </div>
 
-              <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
                  {loading ? (
                     <div style={{ padding: '24px', opacity: 0.5, textAlign: 'center' }}>Executing Query...</div>
                  ) : viewMode === 'table' ? (
@@ -520,6 +615,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
                       {JSON.stringify(results, null, 2)}
                     </pre>
                  )}
+
+                 {/* ── Floating New Document Button ──────────────────────── */}
+                 <button
+                   id="fab-new-document"
+                   onClick={() => setEditingDoc({ mode: 'create' })}
+                   title="New Document"
+                   style={{
+                     position: 'absolute',
+                     bottom: 20,
+                     right: 20,
+                     width: 48,
+                     height: 48,
+                     borderRadius: '50%',
+                     border: 'none',
+                     background: 'var(--accent-color)',
+                     color: 'white',
+                     display: 'flex',
+                     alignItems: 'center',
+                     justifyContent: 'center',
+                     cursor: 'pointer',
+                     boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
+                     transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+                     zIndex: 10,
+                   }}
+                   onMouseEnter={e => {
+                     const btn = e.currentTarget
+                     btn.style.transform = 'scale(1.12)'
+                     btn.style.boxShadow = '0 6px 28px rgba(0,0,0,0.45)'
+                   }}
+                   onMouseLeave={e => {
+                     const btn = e.currentTarget
+                     btn.style.transform = 'scale(1)'
+                     btn.style.boxShadow = '0 4px 20px rgba(0,0,0,0.35)'
+                   }}
+                 >
+                   <Plus size={22} />
+                 </button>
               </div>
             </>
          ) : (
