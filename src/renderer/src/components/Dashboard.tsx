@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { useTheme } from './ThemeProvider'
 import { QueryBuilder } from './QueryBuilder'
 import { DataGrid } from './DataGrid'
 import { BulkActionBar } from './BulkActionBar'
 import { FqlEditor } from './FqlEditor'
 import { DocumentEditor } from './DocumentEditor'
-import { Database, Settings, X, Table2, Braces, Plus, Upload, Download, FileText, CheckCircle2, AlertCircle, Sparkles, Loader2 } from 'lucide-react'
+import { Database, Settings, X, Table2, Braces, Plus, Upload, Download, FileText, CheckCircle2, AlertCircle, Sparkles, Loader2, LayoutList, Moon, Sun, Palette } from 'lucide-react'
 
 interface DashboardProps {
   onAddProject: () => void
@@ -22,7 +23,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [schema, setSchema] = useState<Array<{ name: string; type: string }>>([])  
   const [queryMode, setQueryMode] = useState<'visual' | 'advanced' | 'ai'>('visual')
-  const [viewMode, setViewMode] = useState<'table' | 'json'>('table')
+  const [viewMode, setViewMode] = useState<'table' | 'json' | 'schema'>('table')
   const [editingDoc, setEditingDoc] = useState<{ mode: 'create' | 'edit'; doc?: any } | null>(null)
 
   // AI Generate state
@@ -39,7 +40,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
   const [exportLoading, setExportLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const { theme, setTheme } = useTheme()
   const [showSettings, setShowSettings] = useState(false)
+  const [settingsTab, setSettingsTab] = useState<'appearance' | 'ai'>('appearance')
   const [apiKeyInput, setApiKeyInput] = useState('')
 
   // 1. Initial Load: Get assigned projects & identify active
@@ -347,19 +350,113 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
 
       {/* ── Settings Modal ───────────────────────────────────────────────── */}
       {showSettings && (
-         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
-            <div className="glass-panel" style={{ width: '400px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ margin: 0 }}>API Connections</h3>
-                  <button onClick={() => setShowSettings(false)} style={{ background: 'none', border: 'none', color: 'var(--text-color)', cursor: 'pointer' }}><X size={20} /></button>
-               </div>
-               <div>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: 'var(--text-color-soft)' }}>OpenAI API Key <span style={{opacity: 0.5}}>(for AI queries)</span></label>
-                  <input type="password" value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)} placeholder="sk-..." style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', outline: 'none' }} />
-               </div>
-               <button onClick={handleSaveApiKey} style={{ padding: '10px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>Save Securely</button>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
+          <div className="glass-panel" style={{ width: '460px', padding: '0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(var(--accent-rgb, 245,158,11),0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Settings size={16} style={{ color: 'var(--accent-color)' }} />
+                </div>
+                <h3 style={{ margin: 0, fontSize: 16 }}>Settings</h3>
+              </div>
+              <button onClick={() => setShowSettings(false)} style={{ background: 'none', border: 'none', color: 'var(--text-color-mute)', cursor: 'pointer', padding: 4 }}><X size={20} /></button>
             </div>
-         </div>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 0, padding: '0 24px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-color-soft)' }}>
+              {([['appearance', <Palette size={13} />, 'Appearance'], ['ai', <Sparkles size={13} />, 'AI Configuration']] as const).map(([tab, icon, label]) => (
+                <button
+                  key={tab}
+                  onClick={() => setSettingsTab(tab)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '12px 16px', border: 'none', background: 'transparent',
+                    borderBottom: settingsTab === tab ? '2px solid var(--accent-color)' : '2px solid transparent',
+                    color: settingsTab === tab ? 'var(--accent-color)' : 'var(--text-color-mute)',
+                    fontWeight: settingsTab === tab ? 600 : 400,
+                    fontSize: 13, cursor: 'pointer', transition: 'all 0.15s',
+                    marginBottom: -1,
+                  }}
+                >
+                  {icon}{label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+              {settingsTab === 'appearance' ? (
+                <>
+                  <div>
+                    <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--text-color-mute)' }}>Choose how Firezen looks to you.</p>
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      {(['dark', 'light'] as const).map(t => (
+                        <button
+                          key={t}
+                          onClick={() => setTheme(t)}
+                          style={{
+                            flex: 1, padding: '16px 12px',
+                            borderRadius: 10,
+                            border: theme === t ? '2px solid var(--accent-color)' : '2px solid var(--border-color)',
+                            background: theme === t ? 'rgba(245,158,11,0.06)' : 'var(--bg-color-soft)',
+                            cursor: 'pointer', display: 'flex', flexDirection: 'column',
+                            alignItems: 'center', gap: 10,
+                            transition: 'all 0.18s',
+                          }}
+                        >
+                          <div style={{
+                            width: 40, height: 40, borderRadius: '50%',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: t === 'dark' ? '#1e293b' : '#f1f5f9',
+                            border: '1px solid var(--border-color)',
+                          }}>
+                            {t === 'dark'
+                              ? <Moon size={18} style={{ color: '#94a3b8' }} />
+                              : <Sun size={18} style={{ color: '#f59e0b' }} />}
+                          </div>
+                          <span style={{ fontSize: 13, fontWeight: theme === t ? 600 : 400, color: theme === t ? 'var(--accent-color)' : 'var(--text-color-soft)' }}>
+                            {t === 'dark' ? 'Dark' : 'Light'}
+                          </span>
+                          {theme === t && (
+                            <span style={{ fontSize: 10, color: 'var(--accent-color)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Active</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: 13, fontWeight: 600, color: 'var(--text-color-soft)' }}>
+                      OpenAI API Key <span style={{ opacity: 0.5, fontWeight: 400 }}>(used for AI Generate queries)</span>
+                    </label>
+                    <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--text-color-mute)', opacity: 0.8 }}>
+                      Your key is stored encrypted using Electron's safeStorage and never leaves your machine.
+                    </p>
+                    <input
+                      type="password"
+                      value={apiKeyInput}
+                      onChange={e => setApiKeyInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleSaveApiKey()}
+                      placeholder="sk-..."
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', outline: 'none', fontSize: 13, boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <button
+                    onClick={handleSaveApiKey}
+                    style={{ padding: '10px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 13, transition: 'opacity 0.15s' }}
+                  >
+                    Save Securely
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Toolbar ──────────────────────────────────────────────────────── */}
@@ -570,16 +667,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
                 />
               )}
 
-              {/* Data View: Table / JSON toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              {/* Data View: Table / JSON / Schema toggle */}
+               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                  <div style={{ display: 'flex', background: 'var(--bg-color-soft)', borderRadius: 6, padding: 3, border: '1px solid var(--border-color)' }}>
-                   {(['table', 'json'] as const).map(v => (
+                   {(['table', 'json', 'schema'] as const).map(v => (
                      <button
                        key={v}
                        onClick={() => setViewMode(v)}
                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 12px', borderRadius: 4, border: 'none', background: viewMode === v ? 'var(--accent-color)' : 'transparent', color: viewMode === v ? 'white' : 'var(--text-color-soft)', fontWeight: viewMode === v ? 600 : 400, fontSize: 12, cursor: 'pointer', transition: 'all 0.15s' }}
                      >
-                       {v === 'table' ? <><Table2 size={13} /> Table</> : <><Braces size={13} /> JSON</>}
+                       {v === 'table' ? <><Table2 size={13} /> Table</> : v === 'json' ? <><Braces size={13} /> JSON</> : <><LayoutList size={13} /> Schema</>}
                      </button>
                    ))}
                  </div>
@@ -600,7 +697,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
                       onSelectionChange={setSelectedIds}
                       onEditRow={doc => setEditingDoc({ mode: 'edit', doc })}
                     />
-                 ) : (
+                 ) : viewMode === 'json' ? (
                     <pre style={{
                       flex: 1,
                       margin: 0,
@@ -614,6 +711,72 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
                     }}>
                       {JSON.stringify(results, null, 2)}
                     </pre>
+                 ) : (
+                    /* Schema view */
+                    <div style={{ overflow: 'auto', flex: 1, padding: '20px' }}>
+                      {schema.length === 0 ? (
+                        <div style={{ textAlign: 'center', color: 'var(--text-color-mute)', padding: '32px' }}>No schema available. Select a collection with data.</div>
+                      ) : (
+                        <>
+                          <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <LayoutList size={16} style={{ color: 'var(--accent-color)' }} />
+                            <span style={{ fontWeight: 600, fontSize: 15 }}>Schema</span>
+                            <span style={{ fontSize: 12, color: 'var(--text-color-mute)', opacity: 0.7 }}>— {activeCollection} · {schema.length} field{schema.length !== 1 ? 's' : ''} · sampled from up to 50 documents</span>
+                          </div>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                {['Field', 'Type', 'Sample Values'].map(h => (
+                                  <th key={h} style={{ textAlign: 'left', padding: '8px 14px', fontWeight: 600, color: 'var(--text-color-mute)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {[...schema].sort((a, b) => {
+                                if (a.name === 'id') return -1
+                                if (b.name === 'id') return 1
+                                return a.name.localeCompare(b.name)
+                              }).map((field, i) => {
+                                const typeColors: Record<string, { bg: string; color: string }> = {
+                                  string:    { bg: 'rgba(59,130,246,0.12)',  color: '#60a5fa' },
+                                  number:    { bg: 'rgba(16,185,129,0.12)',  color: '#34d399' },
+                                  boolean:   { bg: 'rgba(245,158,11,0.12)',  color: '#fbbf24' },
+                                  timestamp: { bg: 'rgba(139,92,246,0.12)',  color: '#a78bfa' },
+                                  array:     { bg: 'rgba(236,72,153,0.12)',  color: '#f472b6' },
+                                  object:    { bg: 'rgba(99,102,241,0.12)',  color: '#818cf8' },
+                                  reference: { bg: 'rgba(234,179,8,0.12)',   color: '#eab308' },
+                                  geopoint:  { bg: 'rgba(20,184,166,0.12)',  color: '#2dd4bf' },
+                                  null:      { bg: 'rgba(156,163,175,0.12)', color: '#9ca3af' },
+                                }
+                                const tc = typeColors[field.type] ?? { bg: 'rgba(156,163,175,0.12)', color: '#9ca3af' }
+                                return (
+                                  <tr key={field.name} style={{ borderBottom: '1px solid var(--border-color)', background: i % 2 === 1 ? 'var(--bg-color-soft)' : 'transparent' }}>
+                                    <td style={{ padding: '10px 14px', fontFamily: '"JetBrains Mono", monospace', fontSize: 13, fontWeight: 500 }}>{field.name}</td>
+                                    <td style={{ padding: '10px 14px' }}>
+                                      <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', background: tc.bg, color: tc.color }}>
+                                        {field.type}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: '10px 14px' }}>
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                                        {(field as any).sampleValues?.slice(0, 5).map((sv: any, si: number) => (
+                                          <span key={si} style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, background: 'var(--bg-color-soft)', border: '1px solid var(--border-color)', color: 'var(--text-color-soft)', fontFamily: '"JetBrains Mono", monospace', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }}>
+                                            {String(sv)}
+                                          </span>
+                                        ))}
+                                        {((field as any).sampleValues?.length ?? 0) === 0 && (
+                                          <span style={{ fontSize: 11, color: 'var(--text-color-mute)', opacity: 0.5, fontStyle: 'italic' }}>—</span>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </>
+                      )}
+                    </div>
                  )}
 
                  {/* ── Floating New Document Button ──────────────────────── */}

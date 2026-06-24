@@ -2,10 +2,12 @@ import React, { useMemo, useState } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
+  getSortedRowModel,
   flexRender,
   ColumnDef,
+  SortingState,
 } from '@tanstack/react-table'
-import { Pencil } from 'lucide-react'
+import { Pencil, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 
 interface DataGridProps {
   data: any[]
@@ -15,6 +17,7 @@ interface DataGridProps {
 
 export const DataGrid: React.FC<DataGridProps> = ({ data, onSelectionChange, onEditRow }) => {
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({})
+  const [sorting, setSorting] = useState<SortingState>([])
 
   const columns = useMemo<ColumnDef<any>[]>(() => {
     if (!data || data.length === 0) return []
@@ -22,6 +25,7 @@ export const DataGrid: React.FC<DataGridProps> = ({ data, onSelectionChange, onE
     // ── Checkbox column ──────────────────────────────────────────────
     const checkboxCol: ColumnDef<any> = {
       id: '__select__',
+      enableSorting: false,
       header: ({ table }) => (
         <input
           type="checkbox"
@@ -44,6 +48,7 @@ export const DataGrid: React.FC<DataGridProps> = ({ data, onSelectionChange, onE
     // ── Actions column ───────────────────────────────────────────────
     const actionsCol: ColumnDef<any> = {
       id: '__actions__',
+      enableSorting: false,
       header: () => null,
       cell: ({ row }) => (
         <button
@@ -71,6 +76,15 @@ export const DataGrid: React.FC<DataGridProps> = ({ data, onSelectionChange, onE
     const dataCols: ColumnDef<any>[] = sortedKeys.map(key => ({
       header: key,
       accessorKey: key,
+      enableSorting: true,
+      sortingFn: (rowA, rowB, columnId) => {
+        const a = rowA.getValue(columnId)
+        const b = rowB.getValue(columnId)
+        if (a === null || a === undefined) return 1
+        if (b === null || b === undefined) return -1
+        if (typeof a === 'number' && typeof b === 'number') return a - b
+        return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' })
+      },
       cell: (info) => {
         const val = info.getValue()
         if (val === null || val === undefined) return <span style={{ opacity: 0.4, fontStyle: 'italic' }}>null</span>
@@ -86,7 +100,7 @@ export const DataGrid: React.FC<DataGridProps> = ({ data, onSelectionChange, onE
   const table = useReactTable({
     data,
     columns,
-    state: { rowSelection },
+    state: { rowSelection, sorting },
     onRowSelectionChange: (updater) => {
       const next = typeof updater === 'function' ? updater(rowSelection) : updater
       setRowSelection(next)
@@ -96,9 +110,12 @@ export const DataGrid: React.FC<DataGridProps> = ({ data, onSelectionChange, onE
         .filter(Boolean)
       onSelectionChange(selectedIds)
     },
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
     getRowId: (row, idx) => String(idx),
     enableRowSelection: true,
+    enableMultiSort: false,
   })
 
   if (!data || data.length === 0) {
@@ -115,11 +132,40 @@ export const DataGrid: React.FC<DataGridProps> = ({ data, onSelectionChange, onE
         <thead style={{ position: 'sticky', top: 0, background: 'var(--glass-bg)', zIndex: 10, backdropFilter: 'blur(8px)' }}>
           {table.getHeaderGroups().map(headerGroup => (
             <tr key={headerGroup.id}>
-              {headerGroup.headers.map(header => (
-                <th key={header.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-color-soft)', fontWeight: 600, whiteSpace: 'nowrap', width: (header.column.id === '__select__' || header.column.id === '__actions__') ? `${header.column.columnDef.size}px` : 'auto' }}>
-                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                </th>
-              ))}
+              {headerGroup.headers.map(header => {
+                const canSort = header.column.getCanSort()
+                const sorted = header.column.getIsSorted()
+                return (
+                  <th
+                    key={header.id}
+                    onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                    style={{
+                      padding: '10px 14px',
+                      borderBottom: '1px solid var(--border-color)',
+                      color: sorted ? 'var(--accent-color)' : 'var(--text-color-soft)',
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                      width: (header.column.id === '__select__' || header.column.id === '__actions__') ? `${header.column.columnDef.size}px` : 'auto',
+                      cursor: canSort ? 'pointer' : 'default',
+                      userSelect: 'none',
+                      transition: 'color 0.15s',
+                    }}
+                  >
+                    {header.isPlaceholder ? null : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {canSort && (
+                          <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1, opacity: sorted ? 1 : 0.3, color: sorted ? 'var(--accent-color)' : 'var(--text-color-mute)', transition: 'opacity 0.15s' }}>
+                            {sorted === 'asc'  ? <ChevronUp size={14} /> :
+                             sorted === 'desc' ? <ChevronDown size={14} /> :
+                             <ChevronsUpDown size={13} />}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </th>
+                )
+              })}
             </tr>
           ))}
         </thead>
