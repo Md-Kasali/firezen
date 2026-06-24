@@ -246,7 +246,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
           <button
             onClick={handleSave}
             disabled={isSaving}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 20px', borderRadius: 6, border: 'none', background: 'var(--accent-color)', color: 'white', fontWeight: 600, cursor: 'pointer', opacity: isSaving ? 0.6 : 1 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 20px', borderRadius: 6, border: 'none', background: 'var(--accent-color)', color: 'var(--accent-fg)', fontWeight: 600, cursor: 'pointer', opacity: isSaving ? 0.6 : 1 }}
           >
             <Save size={14} />
             {isSaving ? 'Saving…' : mode === 'create' ? 'Create Document' : 'Save Changes'}

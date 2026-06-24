@@ -180,7 +180,7 @@
 
 .collection-item.active {
   background: var(--accent-color);
-  color: white;
+  color: var(--accent-fg);
 }
 
 .workspace {
@@ -221,12 +221,12 @@
 
 .toolbar-btn--accent {
   background: var(--accent-color);
-  color: white;
+  color: var(--accent-fg);
 }
 
 .toolbar-btn--accent:hover {
   background: var(--accent-color-hover);
-  color: white;
+  color: var(--accent-fg);
 }
 
 .toolbar-btn--disabled {

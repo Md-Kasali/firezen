@@ -119,7 +119,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
                 </div>
                 <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
                   <button onClick={() => setModal(null)} style={{ padding: '8px 20px', borderRadius: 6, border: '1px solid var(--border-color)', background: 'none', color: 'var(--text-color)', cursor: 'pointer' }}>Cancel</button>
-                  <button onClick={handleUpdate} disabled={isProcessing || !fieldName} style={{ padding: '8px 20px', borderRadius: 6, border: 'none', background: 'var(--accent-color)', color: 'white', fontWeight: 600, cursor: 'pointer', opacity: isProcessing ? 0.6 : 1 }}>
+                  <button onClick={handleUpdate} disabled={isProcessing || !fieldName} style={{ padding: '8px 20px', borderRadius: 6, border: 'none', background: 'var(--accent-color)', color: 'var(--accent-fg)', fontWeight: 600, cursor: 'pointer', opacity: isProcessing ? 0.6 : 1 }}>
                     {isProcessing ? 'Updating...' : `Update ${selectedCount} doc${selectedCount !== 1 ? 's' : ''}`}
                   </button>
                 </div>
@@ -139,7 +139,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
         boxShadow: '0 4px 12px rgba(99,102,241,0.25)',
         animation: 'fadeIn 0.2s ease',
       }}>
-        <span style={{ flex: 1, color: 'white', fontWeight: 600, fontSize: 14 }}>
+        <span style={{ flex: 1, color: 'var(--accent-fg)', fontWeight: 600, fontSize: 14 }}>
           {selectedCount} row{selectedCount !== 1 ? 's' : ''} selected
         </span>
         <button

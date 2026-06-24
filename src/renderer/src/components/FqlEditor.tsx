@@ -239,7 +239,7 @@ export const FqlEditor: React.FC<FqlEditorProps> = ({ schema, onExecute, isLoadi
         <button
           onClick={handleRun}
           disabled={isLoading || !query.trim()}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 16px', borderRadius: 6, border: 'none', background: 'var(--accent-color)', color: 'white', fontWeight: 600, cursor: 'pointer', opacity: (isLoading || !query.trim()) ? 0.45 : 1, transition: 'opacity 0.15s' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 16px', borderRadius: 6, border: 'none', background: 'var(--accent-color)', color: 'var(--accent-fg)', fontWeight: 600, cursor: 'pointer', opacity: (isLoading || !query.trim()) ? 0.45 : 1, transition: 'opacity 0.15s' }}
         >
           <Play size={13} /> {isLoading ? 'Running…' : 'Run'}
         </button>
@@ -313,7 +313,7 @@ export const FqlEditor: React.FC<FqlEditorProps> = ({ schema, onExecute, isLoadi
                   borderRadius: 4,
                   border: i === selIdx ? 'none' : '1px solid var(--border-color)',
                   background: i === selIdx ? 'var(--accent-color)' : 'rgba(255,255,255,0.04)',
-                  color: i === selIdx ? 'white' : 'var(--text-color)',
+                  color: i === selIdx ? 'var(--accent-fg)' : 'var(--text-color)',
                   fontFamily: 'monospace',
                   fontSize: 12,
                   fontWeight: i === selIdx ? 600 : 400,

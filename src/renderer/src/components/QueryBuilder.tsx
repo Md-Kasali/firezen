@@ -74,7 +74,7 @@ export const QueryBuilder: React.FC<QueryBuilderProps> = ({ collectionName, onEx
              style={{ width: '80px', padding: '6px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)' }}
              title="Query Limit"
            />
-           <button onClick={handleExecute} style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--accent-color)', color: '#fff', padding: '6px 16px', borderRadius: '6px', fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+           <button onClick={handleExecute} style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)', padding: '6px 16px', borderRadius: '6px', fontWeight: 600, border: 'none', cursor: 'pointer' }}>
              <Play size={14} /> Execute
            </button>
         </div>

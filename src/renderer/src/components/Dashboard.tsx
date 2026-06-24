@@ -334,7 +334,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
                 style={{
                   padding: '9px 22px', borderRadius: 7, border: 'none',
                   background: importLoading ? 'var(--bg-color-mute)' : 'var(--accent-color)',
-                  color: importLoading ? 'var(--text-color-mute)' : 'white',
+                  color: importLoading ? 'var(--text-color-mute)' : 'var(--accent-fg)',
                   fontSize: 13, fontWeight: 600, cursor: importLoading ? 'not-allowed' : 'pointer',
                   display: 'flex', alignItems: 'center', gap: 7,
                   transition: 'all 0.15s'
@@ -448,7 +448,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
                   </div>
                   <button
                     onClick={handleSaveApiKey}
-                    style={{ padding: '10px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 13, transition: 'opacity 0.15s' }}
+                    style={{ padding: '10px', background: 'var(--accent-color)', color: 'var(--accent-fg)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 13, transition: 'opacity 0.15s' }}
                   >
                     Save Securely
                   </button>
@@ -555,7 +555,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
                            display: 'flex', alignItems: 'center', gap: 5,
                            padding: '4px 14px', borderRadius: 4, border: 'none',
                            background: active ? (isAi ? 'linear-gradient(135deg, #7c3aed, #a855f7)' : 'var(--accent-color)') : 'transparent',
-                           color: active ? 'white' : disabled ? 'var(--text-color-mute)' : 'var(--text-color-soft)',
+                            color: active ? (isAi ? 'white' : 'var(--accent-fg)') : disabled ? 'var(--text-color-mute)' : 'var(--text-color-soft)',
                            fontWeight: active ? 600 : 400, fontSize: 13,
                            cursor: disabled ? 'not-allowed' : 'pointer',
                            opacity: disabled ? 0.45 : 1,
@@ -674,7 +674,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
                      <button
                        key={v}
                        onClick={() => setViewMode(v)}
-                       style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 12px', borderRadius: 4, border: 'none', background: viewMode === v ? 'var(--accent-color)' : 'transparent', color: viewMode === v ? 'white' : 'var(--text-color-soft)', fontWeight: viewMode === v ? 600 : 400, fontSize: 12, cursor: 'pointer', transition: 'all 0.15s' }}
+                       style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 12px', borderRadius: 4, border: 'none', background: viewMode === v ? 'var(--accent-color)' : 'transparent', color: viewMode === v ? 'var(--accent-fg)' : 'var(--text-color-soft)', fontWeight: viewMode === v ? 600 : 400, fontSize: 12, cursor: 'pointer', transition: 'all 0.15s' }}
                      >
                        {v === 'table' ? <><Table2 size={13} /> Table</> : v === 'json' ? <><Braces size={13} /> JSON</> : <><LayoutList size={13} /> Schema</>}
                      </button>
@@ -793,7 +793,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAddProject }) => {
                      borderRadius: '50%',
                      border: 'none',
                      background: 'var(--accent-color)',
-                     color: 'white',
+                     color: 'var(--accent-fg)',
                      display: 'flex',
                      alignItems: 'center',
                      justifyContent: 'center',

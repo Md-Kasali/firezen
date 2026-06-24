@@ -7,6 +7,7 @@
   --text-color-mute: #64748b;
   --accent-color: #f59e0b;
   --accent-color-hover: #d97706;
+  --accent-fg: white;
   --border-color: #cbd5e1;
   --glass-bg: rgba(248, 250, 252, 0.75);
   --glass-border: rgba(255, 255, 255, 0.6);
@@ -22,6 +23,7 @@
   --text-color-mute: #94a3b8;
   --accent-color: #f59e0b;
   --accent-color-hover: #fbbf24;
+  --accent-fg: #0f172a;
   --border-color: #334155;
   --glass-bg: rgba(15, 23, 42, 0.75);
   --glass-border: rgba(255, 255, 255, 0.1);
